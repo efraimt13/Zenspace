@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light" data-mood="calm">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <meta name="description" content="ZenSpace: Your ultimate mobile meditation experience." />
+  <meta name="theme-color" content="#5a4fff" />
+  <link rel="manifest" href="manifest.json" />
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/service-worker.js')
+        .then(() => console.log('✅ Service Worker Registered'))
+        .catch(err => console.log('❌ Service Worker Error:', err));
+    }
+  </script>
+
+  <title>ZenSpace – Meditation Reimagined</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Mono&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+  <style>
+    /* ────────── THEME & RESET ────────── */
+    :root {
+      --bg: linear-gradient(135deg, #e0e7ff 0%, #c3d7ff 100%);
+      --text: #1a1a1a;
+      --accent: #5a4fff;
+      --card: rgba(255,255,255,0.25);
+      --blur: blur(14px);
+      --glow: #5a4fff;
+      --shadow: 0 12px 40px rgba(0,0,0,0.12);
+      --highlight: #ffd700;
+      --secondary: #6b7280;
+      --success: #10b981;
+      --particle: rgba(255,255,255,0.7);
+      --handle: #d1d5db;
+    }
+    [data-theme="dark"] {
+      --bg: linear-gradient(135deg, #1e1e3f 0%, #0a0a1c 100%);
+      --text: #e5e7eb;
+      --accent: #ffd700;
+      --card: rgba(30,30,46,0.5);
+      --blur: blur(16px);
+      --glow: #ffd700;
+      --shadow: 0 12px 40px rgba(0,0,0,0.4);
+      --highlight: #5a4fff;
+      --particle: rgba(255,215,0,0.6);
+      --handle: #4b5563;
+    }
+    [data-mood="calm"] { --accent: #5a4fff; --glow: #5a4fff; }
+    [data-mood="focus"] { --accent: #10b981; --glow: #10b981; }
+    [data-mood="energy"] { --accent: #f59e0b; --glow: #f59e0b; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      height: 100%; font-family: 'Inter', sans-serif;
+      background: var(--bg); color: var(--text);
+      scroll-behavior: smooth; overflow-x: hidden;
+      overscroll-behavior: none; -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    h1 { font-size: 2.8rem; font-weight: 700; letter-spacing: -1px; }
+    h2 { font-size: 1.9rem; font-weight: 600; margin-bottom: 1rem; }
+    p { font-size: 1.1rem; line-height: 1.6; opacity: 0.9; }
+    .btn {
+      padding: 1rem 2.5rem; background: var(--accent);
+      color: #fff; border: none; border-radius: 50px;
+      font-size: 1.1rem; font-weight: 600; cursor: pointer;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      transition: transform 0.2s, box-shadow 0.2s, background 0.3s;
+      touch-action: manipulation;
+    }
+    .btn:hover, .btn:focus {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+      outline: none;
+    }
+    .btn:active { transform: scale(0.95); }
+    .icon-btn {
+      width: 50px; height: 50px; border-radius: 50%;
+      background: var(--card); backdrop-filter: var(--blur);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; font-size: 1.3rem;
+      transition: all 0.2s;
+      touch-action: manipulation;
+    }
+    .icon-btn:hover { background: var(--accent); color: #fff; }
+
+    /* ────────── HOME PAGE UI ────────── */
+    .hero-section {
+      min-height: 100vh; display: flex; flex-direction: column;
+      justify-content: center; align-items: center; position: relative;
+      padding: 40px 20px; background: var(--bg);
+      overflow: hidden;
+    }
+    .hero-bg {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: radial-gradient(circle at center, rgba(255,255,255,0.3), transparent);
+      animation: pulseBg 15s infinite ease-in-out;
+    }
+    @keyframes pulseBg {
+      0%, 100% { opacity: 0.5; transform: scale(1); }
+      50% { opacity: 0.8; transform: scale(1.2); }
+    }
+    .hero-content {
+      background: var(--card); backdrop-filter: var(--blur);
+      border-radius: 24px; padding: 2.5rem; box-shadow: var(--shadow);
+      text-align: center; width: 90%; max-width: 500px;
+      animation: slideIn 0.8s ease-out;
+    }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(50px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .streak-display {
+      display: flex; align-items: center; gap: 1rem;
+      margin-top: 1.5rem; font-size: 1rem; font-weight: 500;
+    }
+    .streak-icon {
+      width: 30px; height: 30px; background: var(--highlight);
+      border-radius: 50%; display: flex; align-items: center;
+      justify-content: center; color: #fff; font-size: 0.9rem;
+    }
+
+    /* ────────── BREATHING ORB ────────── */
+    .breath-orb {
+      width: 280px; height: 280px; position: relative;
+      margin: 2.5rem auto; perspective: 1200px;
+    }
+    .orb-core {
+      width: 100%; height: 100%; border-radius: 50%;
+      background: radial-gradient(circle, var(--glow) 20%, transparent 70%);
+      box-shadow: 0 0 70px var(--glow); position: absolute;
+      animation: pulseCore 8s ease-in-out infinite;
+      transform-style: preserve-3d;
+    }
+    .orb-ring {
+      width: 100%; height: 100%; border-radius: 50%;
+      border: 5px solid var(--highlight); position: absolute;
+      box-shadow: 0 0 50px var(--highlight); opacity: 0.7;
+      animation: pulseRing 8s ease-in-out infinite;
+    }
+    .orb-particles {
+      position: absolute; width: 100%; height: 100%;
+      overflow: hidden; border-radius: 50%;
+    }
+    .particle {
+      position: absolute; width: 8px; height: 8px;
+      background: var(--particle); border-radius: 50%;
+      opacity: 0; animation: floatParticle 12s infinite;
+    }
+    @keyframes pulseCore {
+      0%, 100% { transform: scale(0.85) rotateX(10deg); opacity: 0.75; }
+      25% { transform: scale(1.0) rotateX(5deg); opacity: 0.85; }
+      50% { transform: scale(1.45) rotateX(-10deg); opacity: 1; }
+      75% { transform: scale(1.0) rotateX(5deg); opacity: 0.85; }
+    }
+    @keyframes pulseRing {
+      0%, 100% { transform: scale(0.95) rotateY(15deg); opacity: 0.5; }
+      25% { transform: scale(1.1) rotateY(10deg); opacity: 0.6; }
+      50% { transform: scale(1.55) rotateY(-15deg); opacity: 0.85; }
+      75% { transform: scale(1.1) rotateY(10deg); opacity: 0.6; }
+    }
+    @keyframes floatParticle {
+      0% { transform: translate(0, 0); opacity: 0; }
+      50% { opacity: 0.8; }
+      100% { transform: translate(var(--x), var(--y)); opacity: 0; }
+    }
+    @keyframes pulseCoreHold {
+      0%, 100% { transform: scale(1.0) rotateX(5deg); opacity: 0.85; }
+      50% { transform: scale(1.1) rotateX(0deg); opacity: 0.9; }
+    }
+    @keyframes pulseRingHold {
+      0%, 100% { transform: scale(1.1) rotateY(10deg); opacity: 0.6; }
+      50% { transform: scale(1.2) rotateY(5deg); opacity: 0.7; }
+    }
+
+    /* ────────── MODALS & OVERLAYS ────────── */
+    .modal, .overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      display: none; justify-content: center; align-items: flex-end;
+      background: rgba(0,0,0,0.75); z-index: 2000;
+      opacity: 0; transition: opacity 0.4s ease;
+    }
+    .modal.active, .overlay.active {
+      display: flex; opacity: 1;
+    }
+    .modal-content {
+      background: var(--card); backdrop-filter: var(--blur);
+      border-radius: 24px 24px 0 0; padding: 2.5rem; width: 100%; max-width: 600px;
+      box-shadow: var(--shadow); transform: translateY(100%);
+      transition: transform 0.4s ease; position: relative;
+    }
+    .modal.active .modal-content { transform: translateY(0); }
+    .modal-handle {
+      width: 40px; height: 5px; background: var(--handle);
+      border-radius: 3px; margin: 0 auto 1rem; cursor: grab;
+      touch-action: none;
+    }
+    .input, select, input[type="range"] {
+      width: 100%; padding: 1rem; margin: 0.6rem 0;
+      border-radius: 12px; border: 1px solid var(--accent);
+      background: var(--card); color: var(--text);
+      font-size: 1.1rem; touch-action: manipulation;
+    }
+    .theme-carousel {
+      display: flex; overflow-x: auto; gap: 1.2rem;
+      padding: 1.2rem; scroll-snap-type: x mandatory;
+      scrollbar-width: none; -webkit-overflow-scrolling: touch;
+    }
+    .theme-carousel::-webkit-scrollbar { display: none; }
+    .theme-item {
+      flex: 0 0 220px; height: 280px; border-radius: 18px;
+      background-size: cover; position: relative; cursor: pointer;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+      transition: all 0.3s; scroll-snap-align: center;
+      touch-action: pan-x;
+    }
+    .theme-item:hover { transform: scale(1.06); }
+    .theme-item::before {
+      content: ''; position: absolute; top: 0; left: 0;
+      width: 100%; height: 100%; background: linear-gradient(to bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.5));
+    }
+    .theme-item::after {
+      content: attr(data-title); position: absolute; bottom: 12px;
+      left: 0; width: 100%; color: #fff; text-align: center;
+      font-weight: 600; font-size: 1rem; padding: 0.6rem;
+    }
+    .theme-item.selected { border: 4px solid var(--highlight); transform: scale(1.03); }
+
+    /* ────────── AR VIEW ────────── */
+    .ar-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: #000; display: none; z-index: 3000;
+    }
+    .ar-overlay.active { display: block; }
+    #arCanvas { width: 100%; height: 100%; }
+
+    /* ────────── SESSION OVERLAY ────────── */
+    .session-overlay {
+      width: 100%; height: 100%; border-radius: 0;
+      display: flex; flex-direction: column; justify-content: center;
+      align-items: center; background-size: cover; position: relative;
+    }
+    .session-overlay::before {
+      content: ''; position: absolute; top: 0; left: 0;
+      width: 100%; height: 100%; background: linear-gradient(to bottom, rgba(0,0,0,0.4), rgba(0,0,0,0.6));
+      z-index: 0;
+    }
+    .session-overlay > * { position: relative; z-index: 1; }
+    .timer-display {
+      font-size: 2.2rem; font-weight: 600; background: var(--card);
+      padding: 0.8rem 1.5rem; border-radius: 12px; margin: 1.5rem 0;
+    }
+
+    /* ────────── ANIMATIONS ────────── */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .fade-in { animation: fadeIn 0.6s ease forwards; }
+  </style>
+</head>
+<body>
+  <!-- Navigation -->
+  <div class="nav-bar glass-card" style="position:fixed; top:0; left:0; width:100%; padding:16px; z-index:1000;">
+    <h1 style="font-family:'Space Mono',monospace; font-size:1.6rem;">ZenSpace</h1>
+    <div style="display:flex; gap:1rem;">
+      <button class="icon-btn" id="themeToggle" aria-label="Toggle theme">🌙</button>
+      <button class="icon-btn" id="settingsBtn" aria-label="Open settings">⚙️</button>
+    </div>
+  </div>
+
+  <!-- Home Section -->
+  <div class="hero-section">
+    <div class="hero-bg"></div>
+    <div class="hero-content">
+      <h1>Discover Your Zen</h1>
+      <p style="margin-bottom:1.5rem;">Embark on a journey of mindfulness with a meditation experience crafted just for you.</p>
+      <button class="btn fade-in" id="startMeditationBtn" style="animation-delay:0.2s;">Start Now</button>
+      <div class="streak-display fade-in" style="animation-delay:0.4s;">
+        <div class="streak-icon">🔥</div>
+        <span>Streak: <span id="streakDays">0</span> days</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Meditation Setup Modal -->
+  <div class="modal" id="setupModal" role="dialog" aria-label="Create Your Session">
+    <div class="modal-content">
+      <div class="modal-handle"></div>
+      <h2 id="setupTitle">Create Your Session</h2>
+      <input type="text" id="userName" class="input" placeholder="Your Name (optional)" aria-label="Your name" />
+      <h3>Select Theme</h3>
+      <div class="theme-carousel" id="themeCarousel">
+        <div class="theme-item" data-theme="forest" data-title="Forest Haven" style="background-image:url('https://images.pexels.com/photos/418831/pexels-photo-418831.jpeg?auto=compress&cs=tinysrgb&w=1200')"></div>
+        <div class="theme-item" data-theme="ocean" data-title="Ocean Bliss" style="background-image:url('https://images.pexels.com/photos/812958/pexels-photo-812958.jpeg?auto=compress&cs=tinysrgb&w=1200')"></div>
+        <div class="theme-item" data-theme="mountain" data-title="Peak Serenity" style="background-image:url('https://images.pexels.com/photos/913215/pexels-photo-913215.jpeg?auto=compress&cs=tinysrgb&w=1200')"></div>
+        <div class="theme-item" data-theme="cosmos" data-title="Stellar Calm" style="background-image:url('https://images.pexels.com/photos/2150/sky-space-dark-galaxy.jpg?auto=compress&cs=tinysrgb&w=1200')"></div>
+      </div>
+      <select id="moodSelect" class="input" aria-label="Select mood">
+        <option value="calm">Calm</option>
+        <option value="focus">Focus</option>
+        <option value="energy">Energy</option>
+      </select>
+      <select id="durationSelect" class="input" aria-label="Select duration">
+        <option value="60">1 Minute</option>
+        <option value="300">5 Minutes</option>
+        <option value="600">10 Minutes</option>
+        <option value="900">15 Minutes</option>
+        <option value="1800">30 Minutes</option>
+      </select>
+      <label for="volumeSlider">Ambience Volume</label>
+      <input type="range" id="volumeSlider" class="input" min="0" max="1" step="0.05" value="0.5" aria-label="Volume control" />
+      <div style="display:flex; gap:1rem; margin-top:1rem;">
+        <button class="btn" id="arModeBtn" style="flex:1;">Enter AR Mode</button>
+        <button class="btn" id="startSessionBtn" style="flex:1;">Begin Meditation</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Meditation Session Overlay -->
+  <div class="overlay" id="sessionOverlay" role="dialog" aria-label="Meditation Session">
+    <div class="session-overlay">
+      <h2 id="sessionTitle">Your Sanctuary</h2>
+      <p id="sessionMessage" style="font-style:italic; margin-bottom:1rem;">“Breathe deeply, live fully.”</p>
+      <div class="breath-orb">
+        <div class="orb-core"></div>
+        <div class="orb-ring"></div>
+        <div class="orb-particles" id="particleContainer"></div>
+      </div>
+      <div id="breathText" style="font-size:1.6rem; font-weight:600; margin:1rem;">Inhale</div>
+      <div class="timer-display" id="timerDisplay">0:00</div>
+      <div style="display:flex; gap:1rem; margin-top:1.5rem;">
+        <button class="btn" id="pauseBtn">Pause</button>
+        <button class="btn" id="fullscreenBtn"><span id="fullscreenIcon">⛶</span></button>
+        <button class="btn" id="endBtn">End</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- AR Mode -->
+  <div class="ar-overlay" id="arOverlay">
+    <canvas id="arCanvas"></canvas>
+    <button class="icon-btn" id="exitARBtn" style="position:absolute; top:20px; right:20px;">✖</button>
+  </div>
+
+  <!-- Settings Modal -->
+  <div class="modal" id="settingsModal" role="dialog" aria-label="Settings">
+    <div class="modal-content">
+      <div class="modal-handle"></div>
+      <h2 id="settingsTitle">Settings</h2>
+      <label for="notificationsToggle">Enable Notifications</label>
+      <input type="checkbox" id="notificationsToggle" aria-label="Toggle notifications" />
+      <label for="guidedToggle">Guided Meditation</label>
+      <input type="checkbox" id="guidedToggle" aria-label="Toggle guided meditation" />
+      <label for="defaultMood">Default Mood</label>
+      <select id="defaultMood" class="input" aria-label="Select default mood">
+        <option value="calm">Calm</option>
+        <option value="focus">Focus</option>
+        <option value="energy">Energy</option>
+      </select>
+      <button class="btn" id="saveSettingsBtn">Save</button>
+    </div>
+  </div>
+
+  <!-- Completion Modal -->
+  <div class="modal" id="completeModal" role="dialog" aria-label="Session Complete">
+    <div class="modal-content">
+      <div class="modal-handle"></div>
+      <h2 id="completeTitle">Serenity Achieved!</h2>
+      <p id="completeMessage">You’ve completed your session.</p>
+      <p id="completeQuote" style="font-style:italic; margin:1rem 0;"></p>
+      <p>Total Sessions: <span id="totalSessions">0</span></p>
+      <button class="btn" id="completeBtn">Continue</button>
+    </div>
+  </div>
+
+  <script>
+    function restartAnimation(el, className) {
+      el.classList.remove(className);
+      void el.offsetWidth; // force reflow
+      el.classList.add(className);
+    }
+
+    // UTILITIES
+    const formatTime = (sec) => {
+      const minutes = Math.floor(sec / 60);
+      const seconds = sec % 60;
+      return `:`;
+    };
+    const vibrate = () => navigator.vibrate && navigator.vibrate(50);
+    const clamp = (val, min, max) => Math.min(Math.max(val, min), max);
+
+    // QUOTES
+    const quotes = [
+      "Peace begins with a smile. – Mother Teresa",
+      "The mind is everything. What you think, you become. – Buddha",
+      "In the midst of movement and chaos, keep stillness inside of you. – Deepak Chopra",
+      "You are the sky. Everything else is just the weather. – Pema Chödrön",
+      "The present moment is filled with joy and happiness. – Thich Nhat Hanh"
+    ];
+
+    // STATE
+    let sessionActive = false, isPaused = false, timeLeft = 0, intervalId, breathPhase = 0, sessionCompleted = false;
+    const audio = new Audio();
+    audio.loop = true;
+    let stats = JSON.parse(localStorage.getItem('zs_stats')) || { sessions: 0, streak: 0, lastDate: null };
+    let settings = JSON.parse(localStorage.getItem('zs_settings')) || { notifications: true, guided: false, mood: 'calm' };
+    let currentTheme = localStorage.getItem('zs_theme') || 'forest';
+    const themes = {
+      forest: {
+        image: 'https://images.pexels.com/photos/418831/pexels-photo-418831.jpeg?auto=compress&cs=tinysrgb&w=1200',
+        sound: 'https://freesound.org/data/previews/796/796140_16886544-lq.mp3',
+        breathPattern: [
+          { text: 'Inhale', duration: 5000 },
+          { text: 'Hold', duration: 5000 },
+          { text: 'Exhale', duration: 5000 },
+          { text: 'Hold', duration: 5000 }
+        ]
+      },
+      ocean: {
+        image: 'https://images.pexels.com/photos/812958/pexels-photo-812958.jpeg?auto=compress&cs=tinysrgb&w=1200',
+        sound: 'https://freesound.org/data/previews/197/197714_2637715-lq.mp3',
+        breathPattern: [
+          { text: 'Inhale', duration: 5000 },
+          { text: 'Hold', duration: 3000 },
+          { text: 'Exhale', duration: 7000 }
+        ]
+      },
+      mountain: {
+        image: 'https://images.pexels.com/photos/913215/pexels-photo-913215.jpeg?auto=compress&cs=tinysrgb&w=1200',
+        sound: 'https://freesound.org/data/previews/204/204906_2926687-lq.mp3',
+        breathPattern: [
+          { text: 'Inhale', duration: 6000 },
+          { text: 'Exhale', duration: 6000 }
+        ]
+      },
+      cosmos: {
+        image: 'https://images.pexels.com/photos/2150/sky-space-dark-galaxy.jpg?auto=compress&cs=tinysrgb&w=1200',
+        sound: 'https://freesound.org/data/previews/718/718704_16708357-lq.mp3',
+        breathPattern: [
+          { text: 'Inhale', duration: 4000 },
+          { text: 'Hold', duration: 7000 },
+          { text: 'Exhale', duration: 8000 }
+        ]
+      }
+    };
+
+    // ELEMENTS
+    const elements = {
+      themeToggle: document.getElementById('themeToggle'),
+      settingsBtn: document.getElementById('settingsBtn'),
+      startMeditationBtn: document.getElementById('startMeditationBtn'),
+      streakDays: document.getElementById('streakDays'),
+      setupModal: document.getElementById('setupModal'),
+      userName: document.getElementById('userName'),
+      themeCarousel: document.getElementById('themeCarousel'),
+      moodSelect: document.getElementById('moodSelect'),
+      durationSelect: document.getElementById('durationSelect'),
+      volumeSlider: document.getElementById('volumeSlider'),
+      arModeBtn: document.getElementById('arModeBtn'),
+      startSessionBtn: document.getElementById('startSessionBtn'),
+      sessionOverlay: document.getElementById('sessionOverlay'),
+      sessionTitle: document.getElementById('sessionTitle'),
+      sessionMessage: document.getElementById('sessionMessage'),
+      breathText: document.getElementById('breathText'),
+      timerDisplay: document.getElementById('timerDisplay'),
+      pauseBtn: document.getElementById('pauseBtn'),
+      fullscreenBtn: document.getElementById('fullscreenBtn'),
+      fullscreenIcon: document.getElementById('fullscreenIcon'),
+      endBtn: document.getElementById('endBtn'),
+      arOverlay: document.getElementById('arOverlay'),
+      arCanvas: document.getElementById('arCanvas'),
+      exitARBtn: document.getElementById('exitARBtn'),
+      settingsModal: document.getElementById('settingsModal'),
+      notificationsToggle: document.getElementById('notificationsToggle'),
+      guidedToggle: document.getElementById('guidedToggle'),
+      defaultMood: document.getElementById('defaultMood'),
+      saveSettingsBtn: document.getElementById('saveSettingsBtn'),
+      completeModal: document.getElementById('completeModal'),
+      completeMessage: document.getElementById('completeMessage'),
+      completeQuote: document.getElementById('completeQuote'),
+      totalSessions: document.getElementById('totalSessions'),
+      completeBtn: document.getElementById('completeBtn'),
+      particleContainer: document.getElementById('particleContainer')
+    };
+
+    // INITIALIZE
+    try {
+      elements.streakDays.textContent = stats.streak;
+      elements.totalSessions.textContent = stats.sessions;
+      document.documentElement.setAttribute('data-theme', localStorage.getItem('zs_theme') || 'light');
+      document.documentElement.setAttribute('data-mood', settings.mood);
+      elements.themeToggle.textContent = document.documentElement.dataset.theme === 'dark' ? '☀️' : '🌙';
+    } catch (e) {
+      console.error('Initialization error:', e);
+    }
+
+    // EVENT HANDLER WRAPPER
+    function addEventListeners(element, events, handler) {
+      events.forEach(event => {
+        element.addEventListener(event, (e) => {
+          console.log(`Event triggered:  on `);
+          try {
+            handler(e);
+          } catch (err) {
+            console.error(`Error in  handler for :`, err);
+          }
+        });
+      });
+    }
+
+    // THEME TOGGLE
+    addEventListeners(elements.themeToggle, ['click', 'touchstart'], (e) => {
+      e.preventDefault();
+      const theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', theme);
+      localStorage.setItem('zs_theme', theme);
+      elements.themeToggle.textContent = theme === 'dark' ? '☀️' : '🌙';
+      vibrate();
+    });
+
+    // SETTINGS
+    addEventListeners(elements.settingsBtn, ['click', 'touchstart'], (e) => {
+      e.preventDefault();
+      elements.settingsModal.classList.add('active');
+      elements.notificationsToggle.checked = settings.notifications;
+      elements.guidedToggle.checked = settings.guided;
+      elements.defaultMood.value = settings.mood;
+      vibrate();
+    });
+
+    addEventListeners(elements.saveSettingsBtn, ['click', 'touchstart'], (e) => {
+      e.preventDefault();
+      settings = {
+        notifications: elements.notificationsToggle.checked,
+        guided: elements.guidedToggle.checked,
+        mood: elements.defaultMood.value
+      };
+      localStorage.setItem('zs_settings', JSON.stringify(settings));
+      document.documentElement.setAttribute('data-mood', settings.mood);
+      elements.settingsModal.classList.remove('active');
+      vibrate();
+    });
+
+    // START MEDITATION
+    addEventListeners(elements.startMeditationBtn, ['click', 'touchstart'], (e) => {
+      e.preventDefault();
+      elements.setupModal.classList.add('active');
+      elements.userName.value = localStorage.getItem('zs_name') || '';
+      elements.moodSelect.value = settings.mood;
+      elements.durationSelect.value = localStorage.getItem('zs_duration') || '300';
+      elements.volumeSlider.value = localStorage.getItem('zs_volume') || '0.5';
+      updateThemeSelection();
+      vibrate();
+    });
+
+    // MODAL SWIPE-TO-CLOSE
+    let touchStartY, touchCurrentY;
+    [elements.setupModal, elements.settingsModal, elements.completeModal].forEach(modal => {
+      addEventListeners(modal, ['touchstart'], (e) => {
+        touchStartY = e.touches[0].clientY;
+        touchCurrentY = touchStartY;
+      });
+      addEventListeners(modal, ['touchmove'], (e) => {
+        touchCurrentY = e.touches[0].clientY;
+        const deltaY = touchCurrentY - touchStartY;
+        if (deltaY > 0) {
+          modal.querySelector('.modal-content').style.transform = `translateY(px)`;
+        }
+      });
+      addEventListeners(modal, ['touchend'], () => {
+        const deltaY = touchCurrentY - touchStartY;
+        if (deltaY > 100) {
+          modal.classList.remove('active');
+          modal.querySelector('.modal-content').style.transform = `translateY(100%)`;
+        } else {
+          modal.querySelector('.modal-content').style.transform = `translateY(0)`;
+        }
+      });
+    });
+
+    // THEME SELECTION & SWIPING
+    let isDragging = false, startX, scrollLeft;
+    addEventListeners(elements.themeCarousel, ['touchstart'], (e) => {
+      isDragging = true;
+      startX = e.touches[0].pageX - elements.themeCarousel.offsetLeft;
+      scrollLeft = elements.themeCarousel.scrollLeft;
+    });
+    addEventListeners(elements.themeCarousel, ['touchmove'], (e) => {
+      if (!isDragging) return;
+      e.preventDefault();
+      const x = e.touches[0].pageX - elements.themeCarousel.offsetLeft;
+      const walk = (x - startX) * 1.5;
+      elements.themeCarousel.scrollLeft = scrollLeft - walk;
+    });
+    addEventListeners(elements.themeCarousel, ['touchend'], () => {
+      isDragging = false;
+      const items = elements.themeCarousel.querySelectorAll('.theme-item');
+      let closest = null, minDistance = Infinity;
+      items.forEach(item => {
+        const rect = item.getBoundingClientRect();
+        const distance = Math.abs(rect.left - window.innerWidth / 2);
+        if (distance < minDistance) {
+          minDistance = distance;
+          closest = item;
+        }
+      });
+      if (closest) {
+        elements.themeCarousel.scrollTo({
+          left: closest.offsetLeft - (elements.themeCarousel.offsetWidth - closest.offsetWidth) / 2,
+          behavior: 'smooth'
+        });
+      }
+    });
+    elements.themeCarousel.querySelectorAll('.theme-item').forEach(item => {
+      addEventListeners(item, ['click', 'touchstart'], (e) => {
+        e.preventDefault();
+        elements.themeCarousel.querySelectorAll('.theme-item').forEach(i => i.classList.remove('selected'));
+        item.classList.add('selected');
+        currentTheme = item.dataset.theme;
+        localStorage.setItem('zs_theme', currentTheme);
+        vibrate();
+      });
+    });
+    function updateThemeSelection() {
+      elements.themeCarousel.querySelectorAll('.theme-item').forEach(item => {
+        item.classList.toggle('selected', item.dataset.theme === currentTheme);
+      });
+    }
+
+    // PARTICLE EFFECTS
+    function createParticles() {
+      elements.particleContainer.innerHTML = '';
+      for (let i = 0; i < 25; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'particle';
+        const x = (Math.random() - 0.5) * 200;
+        const y = (Math.random() - 0.5) * 200;
+        particle.style.setProperty('--x', `px`);
+        particle.style.setProperty('--y', `px`);
+        particle.style.animationDelay = `s`;
+        elements.particleContainer.appendChild(particle);
+      }
+    }
+
+    // SESSION START
+    addEventListeners(elements.startSessionBtn, ['click', 'touchstart'], async (e) => {
+      e.preventDefault();
+      const name = elements.userName.value.trim();
+      const mood = elements.moodSelect.value;
+      const duration = parseInt(elements.durationSelect.value);
+      const volume = parseFloat(elements.volumeSlider.value);
+
+      if (!duration || isNaN(duration)) {
+        alert('Please select a valid duration.');
+        return;
+      }
+
+      console.log(`Starting session: duration=s, mood=, volume=`);
+
+      localStorage.setItem('zs_name', name);
+      localStorage.setItem('zs_duration', duration);
+      localStorage.setItem('zs_volume', volume);
+      document.documentElement.setAttribute('data-mood', mood);
+
+      elements.sessionOverlay.querySelector('.session-overlay').style.backgroundImage = `url()`;
+      elements.sessionTitle.textContent = name ? `Welcome, ` : 'Your Sanctuary';
+      elements.sessionMessage.textContent = mood === 'focus'
+        ? '“Clarity awaits.”'
+        : mood === 'energy'
+        ? '“Energy rises.”'
+        : '“Breathe deeply, live fully.”';
+
+      audio.src = themes[currentTheme].sound;
+      audio.volume = 0;
+      try {
+        await audio.play();
+        let fadeIn = setInterval(() => {
+          if (audio.volume >= volume) clearInterval(fadeIn);
+          else audio.volume = Math.min(audio.volume + 0.05, volume);
+        }, 100);
+      } catch (e) {
+        console.error('Audio playback failed:', e);
+      }
+
+      timeLeft = duration;
+      elements.timerDisplay.textContent = formatTime(timeLeft);
+      elements.setupModal.classList.remove('active');
+      elements.sessionOverlay.classList.add('active');
+      createParticles();
+      sessionCompleted = false;
+
+      const pattern = themes[currentTheme].breathPattern;
+      function nextBreath() {
+        if (!sessionActive || isPaused) return;
+        const phase = pattern[breathPhase];
+        elements.breathText.textContent = phase.text;
+        const orbCore = document.querySelector('.orb-core');
+        const orbRing = document.querySelector('.orb-ring');
+        const durationSec = phase.duration / 1000;
+
+        orbCore.style.animationDuration = `s`;
+        orbRing.style.animationDuration = `s`;
+
+        if (phase.text.toLowerCase() === 'hold') {
+          orbCore.style.animation = `pulseCoreHold s ease-in-out infinite`;
+          orbRing.style.animation = `pulseRingHold s ease-in-out infinite`;
+        } else {
+          orbCore.style.animation = `pulseCore s ease-in-out infinite`;
+          orbRing.style.animation = `pulseRing s ease-in-out infinite`;
+          restartAnimation(orbCore, 'orb-core');
+          restartAnimation(orbRing, 'orb-ring');
+        }
+
+        breathPhase = (breathPhase + 1) % pattern.length;
+        setTimeout(nextBreath, phase.duration);
+        vibrate();
+      }
+      nextBreath();
+
+      if (intervalId) clearInterval(intervalId); // Clear any existing interval
+      intervalId = setInterval(() => {
+        if (!isPaused && sessionActive) {
+          timeLeft--;
+          console.log(`Timer update: timeLeft=s`);
+          elements.timerDisplay.textContent = formatTime(timeLeft);
+          if (timeLeft <= 0 && !sessionCompleted) {
+            console.log('Session completed, ending session');
+            endSession(true);
+            sessionCompleted = true;
+          }
+        }
+      }, 1000);
+
+      sessionActive = true;
+      vibrate();
+    });
+
+    // PAUSE/RESUME
+    addEventListeners(elements.pauseBtn, ['click', 'touchstart'], (e) => {
+      e.preventDefault();
+      isPaused = !isPaused;
+      elements.pauseBtn.textContent = isPaused ? 'Resume' : 'Pause';
+      if (isPaused) audio.pause();
+      else audio.play().catch(e => console.error('Audio resume failed:', e));
+      console.log(`Session  'resumed'`);
+      vibrate();
+    });
+
+    // FULLSCREEN MODE
+    addEventListeners(elements.fullscreenBtn, ['click', 'touchstart'], (e) => {
+      e.preventDefault();
+      if (!document.fullscreenElement) {
+        elements.sessionOverlay.requestFullscreen().then(() => {
+          elements.fullscreenIcon.textContent = '❐';
+        }).catch(e => console.error('Fullscreen failed:', e));
+      } else {
+        document.exitFullscreen().then(() => {
+          elements.fullscreenIcon.textContent = '⛶';
+        });
+      }
+      vibrate();
+    });
+    document.addEventListener('fullscreenchange', () => {
+      elements.fullscreenIcon.textContent = document.fullscreenElement ? '❐' : '⛶';
+    });
+
+    // END SESSION
+    addEventListeners(elements.endBtn, ['click', 'touchstart'], (e) => {
+      e.preventDefault();
+      console.log('End session triggered manually');
+      endSession(false);
+    });
+    function endSession(completed) {
+      sessionActive = false;
+      if (intervalId) clearInterval(intervalId);
+      audio.pause();
+      elements.sessionOverlay.classList.remove('active');
+      elements.particleContainer.innerHTML = '';
+      if (completed && !sessionCompleted) {
+        stats.sessions++;
+        const today = new Date().toDateString();
+        if (stats.lastDate !== today) {
+          stats.streak = stats.lastDate && new Date(stats.lastDate).getDate() === new Date().getDate() - 1 ? stats.streak + 1 : 1;
+          stats.lastDate = today;
+        }
+        localStorage.setItem('zs_stats', JSON.stringify(stats));
+        elements.totalSessions.textContent = stats.sessions;
+        elements.streakDays.textContent = stats.streak;
+        elements.completeMessage.textContent = 'You’ve completed your session!';
+        elements.completeQuote.textContent = quotes[Math.floor(Math.random() * quotes.length)];
+        elements.completeModal.classList.add('active');
+        sessionCompleted = true;
+        console.log('Completion modal shown');
+      }
+      vibrate();
+    }
+
+    // COMPLETE
+    addEventListeners(elements.completeBtn, ['click', 'touchstart'], (e) => {
+      e.preventDefault();
+      elements.completeModal.classList.remove('active');
+      elements.streakDays.textContent = stats.streak;
+      console.log('Completion modal closed');
+      vibrate();
+    });
+
+    // AR MODE
+    let scene, camera, renderer, water;
+    function initAR() {
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+      renderer = new THREE.WebGLRenderer({ canvas: elements.arCanvas });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+
+      const waterGeometry = new THREE.PlaneGeometry(100, 100, 32, 32);
+      const waterMaterial = new THREE.MeshBasicMaterial({
+        color: 0x4682b4,
+        wireframe: true,
+        opacity: 0.7,
+        transparent: true
+      });
+      water = new THREE.Mesh(waterGeometry, waterMaterial);
+      water.rotation.x = -Math.PI / 2;
+      scene.add(water);
+
+      camera.position.set(0, 10, 20);
+      camera.lookAt(0, 0, 0);
+      animateAR();
+    }
+    function animateAR() {
+      if (!elements.arOverlay.classList.contains('active')) return;
+      const time = Date.now() * 0.001;
+      const positions = water.geometry.attributes.position;
+
+      for (let i = 0; i < positions.count; i++) {
+        const x = positions.getX(i);
+        const y = positions.getY(i);
+        const z = Math.sin(x + time) * 0.5;
+        positions.setZ(i, z);
+      }
+
+      positions.needsUpdate = true;
+      renderer.render(scene, camera);
+      requestAnimationFrame(animateAR);
+    }
+
+    addEventListeners(elements.arModeBtn, ['click', 'touchstart'], (e) => {
+      e.preventDefault();
+      elements.setupModal.classList.remove('active');
+      elements.arOverlay.classList.add('active');
+      initAR();
+      vibrate();
+    });
+    addEventListeners(elements.exitARBtn, ['click', 'touchstart'], (e) => {
+      e.preventDefault();
+      elements.arOverlay.classList.remove('active');
+      elements.setupModal.classList.add('active');
+      renderer.dispose();
+      vibrate();
+    });
+
+    // ACCESSIBILITY
+    document.querySelectorAll('.btn, .icon-btn, .theme-item').forEach(el => {
+      el.tabIndex = 0;
+      addEventListeners(el, ['click', 'touchstart'], (e) => {
+        e.preventDefault();
+        el.dispatchEvent(new Event('click'));
+      });
+    });
+
+    // WINDOW RESIZE
+    window.addEventListener('resize', () => {
+      if (renderer) {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      }
+    });
+  </script>
+  <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF={r:'9321cbd9adc0b061',t:'MTc0NDk1NDUwMC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script>
+</body>
+</html>
