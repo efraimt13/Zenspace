@@ -118,6 +118,11 @@
       border-radius: 50%; display: flex; align-items: center;
       justify-content: center; color: #fff; font-size: 0.9rem;
     }
+    .orb-static {
+  animation: none !important;
+  transform: scale(1.2); /* or whatever midpoint looks good */
+  opacity: 1;
+}
 
     /* ────────── BREATHING ORB ────────── */
     .breath-orb {
@@ -362,6 +367,12 @@
   </div>
 
   <script>
+    function restartAnimation(el, className) {
+  el.classList.remove(className);
+  void el.offsetWidth; // force reflow
+  el.classList.add(className);
+}
+
     // UTILITIES
     const formatTime = (sec) => `${Math.floor(sec / 60)}:${(sec % 60).toString().padStart(2, '0')}`;
     const vibrate = () => navigator.vibrate && navigator.vibrate(50);
@@ -383,44 +394,45 @@
     let stats = JSON.parse(localStorage.getItem('zs_stats')) || { sessions: 0, streak: 0, lastDate: null };
     let settings = JSON.parse(localStorage.getItem('zs_settings')) || { notifications: true, guided: false, mood: 'calm' };
     let currentTheme = localStorage.getItem('zs_theme') || 'forest';
-
     const themes = {
-      forest: {
-        image: 'https://images.pexels.com/photos/9754/pexels-photo-9754.jpeg?auto=compress&cs=tinysrgb&w=300',
-        sound: 'https://freesound.org/data/previews/612/612614_14267066-lq.mp3',
-        breathPattern: [
-          { text: 'Inhale', duration: 4000 },
-          { text: 'Hold', duration: 4000 },
-          { text: 'Exhale', duration: 4000 },
-          { text: 'Hold', duration: 4000 }
-        ]
-      },
-      ocean: {
-        image: 'https://images.pexels.com/photos/847393/pexels-photo-847393.jpeg?auto=compress&cs=tinysrgb&w=300',
-        sound: 'https://freesound.org/data/previews/517/517563_5121236-lq.mp3',
-        breathPattern: [
-          { text: 'Inhale', duration: 5000 },
-          { text: 'Exhale', duration: 5000 }
-        ]
-      },
-      mountain: {
-        image: 'https://images.pexels.com/photos/3408744/pexels-photo-3408744.jpeg?auto=compress&cs=tinysrgb&w=300',
-        sound: 'https://freesound.org/data/previews/269/269693_5095328-lq.mp3',
-        breathPattern: [
-          { text: 'Inhale', duration: 6000 },
-          { text: 'Exhale', duration: 6000 }
-        ]
-      },
-      cosmos: {
-        image: 'https://images.pexels.com/photos/957040/pexels-photo-957040.jpeg?auto=compress&cs=tinysrgb&w=300',
-        sound: 'https://freesound.org/data/previews/171/171671_2438878-lq.mp3',
-        breathPattern: [
-          { text: 'Inhale', duration: 7000 },
-          { text: 'Hold', duration: 7000 },
-          { text: 'Exhale', duration: 7000 }
-        ]
-      }
-    };
+  forest: {
+    image: 'https://images.pexels.com/photos/418831/pexels-photo-418831.jpeg?auto=compress&cs=tinysrgb&w=1200',
+    sound: 'https://freesound.org/data/previews/796/796140_16886544-lq.mp3',
+    breathPattern: [
+      { text: 'Inhale', duration: 5000 },
+      { text: 'Hold', duration: 5000 },
+      { text: 'Exhale', duration: 5000 },
+      { text: 'Hold', duration: 5000 }
+    ]
+  },
+  ocean: {
+    image: 'https://images.pexels.com/photos/812958/pexels-photo-812958.jpeg?auto=compress&cs=tinysrgb&w=1200',
+    sound: 'https://freesound.org/data/previews/197/197714_2637715-lq.mp3',
+    breathPattern: [
+      { text: 'Inhale', duration: 5000 },
+      { text: 'Hold', duration: 3000 },
+      { text: 'Exhale', duration: 7000 }
+    ]
+  },
+  mountain: {
+    image: 'https://images.pexels.com/photos/913215/pexels-photo-913215.jpeg?auto=compress&cs=tinysrgb&w=1200',
+    sound: 'https://freesound.org/data/previews/204/204906_2926687-lq.mp3',
+    breathPattern: [
+      { text: 'Inhale', duration: 6000 },
+      { text: 'Exhale', duration: 6000 }
+    ]
+  },
+  cosmos: {
+    image: 'https://images.pexels.com/photos/2150/sky-space-dark-galaxy.jpg?auto=compress&cs=tinysrgb&w=1200',
+    sound: 'https://freesound.org/data/previews/718/718704_16708357-lq.mp3',
+    breathPattern: [
+      { text: 'Inhale', duration: 4000 },
+      { text: 'Hold', duration: 7000 },
+      { text: 'Exhale', duration: 8000 }
+    ]
+  }
+};
+
 
     // ELEMENTS
     const elements = {
@@ -625,9 +637,10 @@
       for (let i = 0; i < 25; i++) {
         const particle = document.createElement('div');
         particle.className = 'particle';
-        particle.style.setProperty('--x', `${Math.random() * 220 - 110}px`);
-        particle.style.setProperty('--y', `${Math.random() * 220 - 110}px`);
-        particle.style.animationDelay = `${Math.random() * 6}s`;
+        particle.style.setProperty('--x', `${Math.random() * 200 - 100}px`);
+particle.style.setProperty('--y', `${Math.random() * -200}px`);
+particle.style.animationDelay = `${Math.random() * 12}s`;
+
         elements.particleContainer.appendChild(particle);
       }
     }
@@ -651,7 +664,11 @@
 
       elements.sessionOverlay.querySelector('.session-overlay').style.backgroundImage = `url(${themes[currentTheme].image})`;
       elements.sessionTitle.textContent = name ? `Welcome, ${name}` : 'Your Sanctuary';
-      elements.sessionMessage.textContent = `“${mood === 'calm' ? 'Peace flows within.' : mood === 'focus' ? 'Clarity awaits.' : 'Energy rises.'}”`;
+      elements.sessionMessage.textContent = mood === 'focus'
+  ? '“Clarity awaits.”'
+  : mood === 'energy'
+  ? '“Energy rises.”'
+  : '“Breathe deeply, live fully.”';
 
       audio.src = themes[currentTheme].sound;
       audio.volume = 0;
@@ -676,8 +693,26 @@
         if (!sessionActive || isPaused) return;
         const phase = pattern[breathPhase];
         elements.breathText.textContent = phase.text;
-        document.querySelector('.orb-core').style.animationDuration = `${phase.duration / 1000}s`;
-        document.querySelector('.orb-ring').style.animationDuration = `${phase.duration / 1000}s`;
+        const orbCore = document.querySelector('.orb-core');
+const orbRing = document.querySelector('.orb-ring');
+const durationSec = phase.duration / 1000;
+
+if (phase.text.toLowerCase() === 'hold') {
+  // Freeze the animation and keep orb still
+  orbCore.classList.add('orb-static');
+  orbRing.classList.add('orb-static');
+} else {
+  // Animate pulse
+  orbCore.classList.remove('orb-static');
+  orbRing.classList.remove('orb-static');
+
+  orbCore.style.animationDuration = `${durationSec}s`;
+  orbRing.style.animationDuration = `${durationSec}s`;
+
+  restartAnimation(orbCore, 'orb-core');
+  restartAnimation(orbRing, 'orb-ring');
+}
+
         breathPhase = (breathPhase + 1) % pattern.length;
         setTimeout(nextBreath, phase.duration);
         vibrate();
@@ -781,15 +816,22 @@
       animateAR();
     }
     function animateAR() {
-      if (!elements.arOverlay.classList.contains('active')) return;
-      const time = Date.now() * 0.001;
-      water.geometry.vertices.forEach((vertex, i) => {
-        vertex.z = Math.sin(i + time) * 0.5;
-      });
-      water.geometry.verticesNeedUpdate = true;
-      renderer.render(scene, camera);
-      requestAnimationFrame(animateAR);
-    }
+  if (!elements.arOverlay.classList.contains('active')) return;
+  const time = Date.now() * 0.001;
+  const positions = water.geometry.attributes.position;
+
+  for (let i = 0; i < positions.count; i++) {
+    const x = positions.getX(i);
+    const y = positions.getY(i);
+    const z = Math.sin(x + time) * 0.5;
+    positions.setZ(i, z);
+  }
+
+  positions.needsUpdate = true;
+  renderer.render(scene, camera);
+  requestAnimationFrame(animateAR);
+}
+
     elements.arModeBtn.addEventListener('touchstart', () => {
       elements.setupModal.classList.remove('active');
       elements.arOverlay.classList.add('active');
